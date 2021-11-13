@@ -16,6 +16,7 @@
   },
   "scripts": {
     "start": "node ./bin",
+    "gcp-build": "npm run build",
     "build": "rimraf bin && tsc && copyfiles -u 1 \"./src/**/*.graphql\" bin",
     "dev": "tsc-watch --onSuccess \"node bin\"",
     "test": "jest --detectOpenHandles --silent",

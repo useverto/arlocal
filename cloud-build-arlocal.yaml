@@ -1,0 +1,15 @@
+steps:
+  - name: 'node'
+    entrypoint: 'npm'
+    args: ['install']
+  - name: 'node'
+    entrypoint: 'npm'
+    args: ['install', 'rimraf', '-g']
+  - name: 'node'
+    entrypoint: 'npm'
+    args: ['install', 'copyfiles', '-g']    
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: [ 'app', 'deploy', 'app.yaml']
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s
