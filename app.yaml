@@ -1,5 +1,5 @@
 runtime: nodejs16 # or another supported version
-
+service: arweave-verto-testnet
 instance_class: F4_1G
 
 automatic_scaling:
