@@ -1,10 +1,10 @@
 import { Server } from 'http';
 import { rmSync, mkdirSync, existsSync } from 'fs';
 import path, { join } from 'path';
-import Koa from 'koa';
+import Koa, { Next } from 'koa';
 import cors from '@koa/cors';
 import bodyParser from 'koa-bodyparser';
-import Router from 'koa-router';
+import Router, { RouterContext } from 'koa-router';
 import json from 'koa-json';
 import logger from 'koa-logger';
 import { ApolloServer } from 'apollo-server-koa';
@@ -29,9 +29,17 @@ import { Utils } from './utils/utils';
 import { NetworkInterface } from './faces/network';
 import Logging from './utils/logging';
 import { blocksRoute } from './routes/blocks';
-import { createWalletRoute, getBalanceRoute, getLastWalletTxRoute, updateBalanceRoute } from './routes/wallet';
+import {
+  addBalanceRoute,
+  createWalletRoute,
+  getBalanceRoute,
+  getLastWalletTxRoute,
+  updateBalanceRoute,
+} from './routes/wallet';
 import { getChunkOffsetRoute, postChunkRoute } from './routes/chunk';
 import { peersRoute } from './routes/peer';
+import { WalletDB } from './db/wallet';
+import { BlockDB } from './db/block';
 
 declare module 'koa' {
   interface BaseContext {
@@ -55,6 +63,7 @@ export default class ArLocal {
   private server: Server;
   private app = new Koa();
   private router = new Router();
+  private walletDB: WalletDB;
 
   constructor(port: number = 1984, showLogs: boolean = true, dbPath?: string, persist = false) {
     this.port = port || this.port;
@@ -82,10 +91,29 @@ export default class ArLocal {
     this.app.context.logging = this.log;
     this.app.context.dbPath = dbPath;
     this.app.context.connection = this.connection;
+    this.walletDB = new WalletDB(this.connection);
   }
 
   async start() {
     await this.startDB();
+
+    const blockDB = new BlockDB(this.connection);
+    const lastBlock = await blockDB.getLastBlock();
+    if (lastBlock) {
+      this.app.context.network.current = lastBlock.id;
+      this.app.context.network.height = lastBlock.height;
+      this.app.context.network.blocks = lastBlock.height + 1;
+    }
+
+    // ISSUE WITH ARCONNECT THAT IS SENDING HEAD REQUESTS FOR NO REASON
+    this.router.use(async (ctx: RouterContext, next: Next) => {
+      if (ctx.method === 'HEAD') {
+        ctx.status = 405;
+        ctx.body = 'Method Not Allowed';
+        return;
+      }
+      await next();
+    });
 
     this.router.get('/', statusRoute);
     this.router.get('/info', statusRoute);
@@ -110,6 +138,7 @@ export default class ArLocal {
 
     this.router.post('/wallet', createWalletRoute);
     this.router.patch('/wallet/:address/balance', updateBalanceRoute);
+    this.router.get('/mint/:address/:balance', addBalanceRoute);
 
     this.router.get('/wallet/:address/balance', getBalanceRoute);
     this.router.get('/wallet/:address/last_tx', getLastWalletTxRoute);
@@ -204,5 +233,8 @@ export default class ArLocal {
 
   getDbPath(): string {
     return this.dbPath;
+  }
+  getWalletDb(): WalletDB {
+    return this.walletDB;
   }
 }

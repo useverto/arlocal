@@ -48,14 +48,17 @@ import ArLocal from 'arlocal';
 
 The `ArLocal` class has a few options, all of them are optional.
 ```
-ArLocal(port = 1984, showLogs = true, dbPath = '.db')
+ArLocal(port = 1984, showLogs = true, dbPath = '.db', persist = false)
 
 port = What port to use for ArLocal.
 showLogs = Should we show logs.
 dbPath = folder where the db will be temporary stored.
+persist = Whether or not data stored should be persisted among server restarts.
 ```
 
 #### Sending transactions
+Before sending a transaction to ArLocal, make sure you mint new AR tokens for the wallet you'll be using. This is done using the endpoint `/mint/<address>/<balance>`.
+
 Sending a new transaction is done just like with the default gateway, use ArweaveJS to create your transaction, sign and post it.
 
 After this transaction is sent, to confirm (`mine`) your transactions, you need to hit the `/mine` endpoint. You can do this programmatically or by simply going to `http://localhost:1984/mine`.

@@ -106,9 +106,21 @@ export async function txPostRoute(ctx: Router.RouterContext) {
     if (oldDbPath !== ctx.dbPath || !dataDB || !walletDB) {
       dataDB = new DataDB(ctx.dbPath);
       walletDB = new WalletDB(ctx.connection);
+      chunkDB = new ChunkDB(ctx.connection);
+
       oldDbPath = ctx.dbPath;
     }
     const data = ctx.request.body as unknown as TransactionType;
+    const owner = bufferTob64Url(await hash(b64UrlToBuffer(data.owner)));
+
+    const wallet = await walletDB.getWallet(owner);
+    const calculatedReward = +data.data_size * 1965132;
+
+    if (!wallet || wallet.balance < calculatedReward) {
+      ctx.status = 410;
+      ctx.body = { code: 410, msg: "You don't have enough tokens" };
+      return;
+    }
 
     ctx.logging.log('post', data);
 
@@ -126,43 +138,62 @@ export async function txPostRoute(ctx: Router.RouterContext) {
     if (bundleFormat === 'binary' && bundleVersion === '2.0.0') {
       // ANS-104
 
-      const buffer = Buffer.from(data.data, 'base64');
+      const createTxsFromItems = async (buffer: Buffer) => {
+        const bundle = new Bundle(buffer);
 
-      const bundle = new Bundle(buffer);
+        const items = bundle.items;
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
 
-      const items = bundle.items;
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-
-        await txPostRoute({
-          ...ctx,
-          connection: ctx.connection,
-          logging: ctx.logging,
-          network: ctx.network,
-          request: {
-            ...ctx.request,
-            body: {
-              id: bundle.getIdBy(i),
-              ...item.toJSON(),
+          await txPostRoute({
+            ...ctx,
+            connection: ctx.connection,
+            dbPath: ctx.dbPath,
+            logging: ctx.logging,
+            network: ctx.network,
+            request: {
+              ...ctx.request,
+              body: {
+                id: bundle.getIdBy(i),
+                ...item.toJSON(),
+              },
             },
-          },
-        });
+            // @ts-ignore
+            txInBundle: true,
+          });
+        }
+      };
+
+      if (data.data) {
+        const buffer = Buffer.from(data.data, 'base64');
+        await createTxsFromItems(buffer);
+      } else {
+        (async () => {
+          let lastOffset = 0;
+          let chunks;
+          while (+data.data_size - 1 !== lastOffset) {
+            chunks = await chunkDB.getRoot(data.data_root);
+            lastOffset = +chunks[chunks.length - 1]?.offset || 0;
+          }
+
+          const chunk = chunks.map((ch) => Buffer.from(b64UrlToBuffer(ch.chunk)));
+
+          const buffer = Buffer.concat(chunk);
+          await createTxsFromItems(buffer);
+        })();
       }
     }
 
-    const owner = bufferTob64Url(await hash(b64UrlToBuffer(data.owner)));
-
     // BALANCE UPDATES
     if (data?.target && data?.quantity) {
-      const fromWallet = await walletDB.getWallet(owner);
       const targetWallet = await walletDB.getWallet(data.target);
 
-      if (!fromWallet || !targetWallet) {
+      if (!wallet || !targetWallet) {
         ctx.status = 404;
         ctx.body = { status: 404, error: `Wallet not found` };
         return;
       }
-      if (fromWallet?.balance < +data.quantity + +data.reward) {
+      if (wallet?.balance < +data.quantity + +data.reward) {
         ctx.status = 403;
         ctx.body = { status: 403, error: `you don't have enough funds to send ${data.quantity}` };
         return;
@@ -170,8 +201,6 @@ export async function txPostRoute(ctx: Router.RouterContext) {
       await walletDB.incrementBalance(data.target, +data.quantity);
       await walletDB.incrementBalance(data.owner, -data.quantity);
     }
-
-    await walletDB.incrementBalance(data.owner, -data.reward);
 
     await dataDB.insert({ txid: data.id, data: data.data });
 
@@ -200,6 +229,11 @@ export async function txPostRoute(ctx: Router.RouterContext) {
       index++;
     }
 
+    // @ts-ignore
+    if (!ctx.txInBundle) {
+      const fee = +data.reward > calculatedReward ? +data.reward : calculatedReward;
+      await walletDB.incrementBalance(owner, -fee);
+    }
     ctx.body = data;
   } catch (error) {
     console.error({ error });
