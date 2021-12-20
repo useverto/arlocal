@@ -25,8 +25,8 @@ process.on('unhandledRejection', (reason, p) => { console.error(reason, 'Unhandl
   // process.on('SIGTERM', stop);
 })();
 
-async function stop() {
-  try {
-    await app.stop();
-  } catch (e) {}
-}
+// async function stop() {
+//   try {
+//     await app.stop();
+//   } catch (e) {}
+// }
