@@ -14,12 +14,15 @@ const dbPath = argv.dbpath ? join(process.cwd(), argv.dbpath) : appData('arlocal
 
 let app: ArLocal;
 
+process.on('uncaughtException', (err) => { console.error(err); });
+process.on('unhandledRejection', (reason, p) => { console.error(reason, 'Unhandled Rejection at Promise', p); });
+
 (async () => {
   app = new ArLocal(+port, showLogs, dbPath, !!persist);
   await app.start();
 
-  process.on('SIGINT', stop);
-  process.on('SIGTERM', stop);
+  // process.on('SIGINT', stop);
+  // process.on('SIGTERM', stop);
 })();
 
 async function stop() {
