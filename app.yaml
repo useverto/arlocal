@@ -4,6 +4,3 @@ instance_class: F4_1G
 
 automatic_scaling:
   max_instances: 2
-network:
-  forwarded_ports:
-    - 8080/tcp
