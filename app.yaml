@@ -4,3 +4,9 @@ instance_class: F4_1G
 
 automatic_scaling:
   max_instances: 2
+network:
+  forwarded_ports:
+    - PORT
+    - HOST_PORT:CONTAINER_PORT
+    - PORT/tcp
+    - HOST_PORT:CONTAINER_PORT/udp 
