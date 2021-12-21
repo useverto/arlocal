@@ -7,4 +7,4 @@ automatic_scaling:
   max_instances: 6
   min_pending_latency: 1000ms
   max_pending_latency: 3000ms
-  target_cpu_utilization: 0.8
+  target_cpu_utilization: 0.95
