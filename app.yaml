@@ -3,8 +3,7 @@ service: arweave-verto-testnet
 instance_class: F4_1G
 
 automatic_scaling:
-  min_instances: 3
-  max_instances: 6
-  min_pending_latency: 1000ms
-  max_pending_latency: 3000ms
-  target_cpu_utilization: 0.95
+  min_instances: 1
+  max_instances: 1
+  min_pending_latency: 2000ms
+  max_pending_latency: 4000ms
