@@ -11,7 +11,7 @@ export async function up(knex: Knex) {
     .dropTableIfExists('chunks');
 
   return knex.schema
-    .createTable('transactions', (table) => {
+    .createTableIfNotExists('transactions', (table) => {
       table.string('id', 64).notNullable();
       table.text('owner');
       table.jsonb('tags');
@@ -40,7 +40,7 @@ export async function up(knex: Knex) {
       table.index(['owner_address'], 'transactions_owner_address', 'HASH');
       table.index(['target'], 'transactions_target', 'HASH');
     })
-    .createTable('blocks', (table) => {
+    .createTableIfNotExists('blocks', (table) => {
       table.string('id', 64).notNullable();
       table.integer('height', 4).notNullable();
       table.timestamp('mined_at').notNullable();
@@ -52,27 +52,27 @@ export async function up(knex: Knex) {
       table.primary(['id'], 'pkey_blocks');
       table.index(['height'], 'blocks_height', 'HASH');
     })
-    .createTable('tags', (table) => {
+    .createTableIfNotExists('tags', (table) => {
       table.string('tx_id', 64).notNullable();
       table.integer('index').notNullable();
       table.text('name');
       table.text('value');
       table.timestamp('created_at').defaultTo(knex.fn.now());
 
-      table.primary(['tx_id', 'index'], 'pkey_tags');
+      table.primary(['tx_id', 'index'], 'pkey_tags_tags');
       table.index(['tx_id', 'name'], 'tags_tx_id_name', 'BTREE');
       table.index(['name'], 'tags_name', 'HASH');
       table.index(['name', 'value'], 'tags_name_value', 'BTREE');
     })
-    .createTable('wallets', (table) => {
+    .createTableIfNotExists('wallets', (table) => {
       table.string('id', 64).notNullable();
       table.string('address').notNullable();
       table.float('balance').defaultTo(0);
       table.timestamp('created_at').defaultTo(knex.fn.now());
 
-      table.primary(['id'], 'pkey_tags');
+      table.primary(['id'], 'pkey_tags_wallets');
     })
-    .createTable('chunks', (table) => {
+    .createTableIfNotExists('chunks', (table) => {
       table.string('id', 64).notNullable();
       table.text('chunk').notNullable();
       table.string('data_root').notNullable();
@@ -81,7 +81,7 @@ export async function up(knex: Knex) {
       table.string('data_path').notNullable();
       table.timestamp('created_at').defaultTo(knex.fn.now());
 
-      table.primary(['id'], 'pkey_tags');
+      table.primary(['id'], 'pkey_tags_chunks');
     });
 }
 

@@ -4,6 +4,8 @@ import { join } from 'path';
 import ArLocal from './app';
 import { appData } from './utils/appdata';
 
+import { config } from "dotenv";
+
 const argv = minimist(process.argv.slice(2));
 
 const port = process.env["PORT"] || (argv._.length && !isNaN(+argv._[0]) ? argv._[0] : 1984);
@@ -18,6 +20,7 @@ process.on('uncaughtException', (err) => { console.error(err); });
 process.on('unhandledRejection', (reason, p) => { console.error(reason, 'Unhandled Rejection at Promise', p); });
 
 (async () => {
+  config();
   app = new ArLocal(+port, showLogs, dbPath, !!persist);
   await app.start();
 

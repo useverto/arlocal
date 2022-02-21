@@ -4,6 +4,11 @@ steps:
     args: ['install']
   - name: 'node'
     entrypoint: 'npm'
+    args: ['run', 'create-env']
+    env:
+      - 'DB_CONN_STRING=${_DB_CONN_STRING}' 
+  - name: 'node'
+    entrypoint: 'npm'
     args: ['install', 'rimraf', '-g']
   - name: 'node'
     entrypoint: 'npm'
