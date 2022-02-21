@@ -28,7 +28,8 @@
     "prepublishOnly": "npm run lint",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
-    "postversion": "git push && git push --tags"
+    "postversion": "git push && git push --tags",
+    "create-env": "printenv > .env"
   },
   "dependencies": {
     "@koa/cors": "^3.1.0",
@@ -36,6 +37,7 @@
     "arbundles": "^0.2.6",
     "arweave-bundles": "^1.0.3",
     "bignumber.js": "^9.0.1",
+    "dotenv": "^16.0.0",
     "graphql": "^15.5.0",
     "knex": "^0.95.6",
     "koa": "^2.13.1",
@@ -47,6 +49,7 @@
     "lodash": "^4.17.21",
     "minimist": "^1.2.5",
     "moment": "^2.29.1",
+    "pg": "^8.7.3",
     "rfc4648": "^1.5.0",
     "smartweave": "^0.4.45",
     "sqlite3": "^5.0.2",

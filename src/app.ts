@@ -74,7 +74,7 @@ export default class ArLocal {
     this.persist = persist;
     this.log = new Logging(showLogs);
 
-    this.connection = connect(dbPath);
+    this.connection = connect();
 
     this.app.context.network = {
       network: 'arlocal.N.1',
@@ -191,7 +191,7 @@ export default class ArLocal {
     );
 
     this.apollo.applyMiddleware({ app: this.app, path: '/graphql' });
-    if (!existsSync(join(this.dbPath, 'db.sqlite'))) await up(this.connection);
+    // await up(this.connection);
   }
 
   async stop() {

@@ -1,12 +1,8 @@
-import { join } from 'path';
 import { knex, Knex } from 'knex';
 
-export const connect = (dbPath: string): Knex => {
+export const connect = (): Knex => {
   return knex({
-    client: 'sqlite3',
-    connection: {
-      filename: join(dbPath, 'db.sqlite'),
-    },
-    useNullAsDefault: true,
+    client: 'pg',
+    connection: process.env.DB_CONN_STRING
   });
 };
