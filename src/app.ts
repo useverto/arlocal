@@ -1,6 +1,6 @@
 import { Server } from 'http';
 import { rmSync, mkdirSync, existsSync } from 'fs';
-import path, { join } from 'path';
+import path from 'path';
 import Koa, { Next } from 'koa';
 import cors from '@koa/cors';
 import bodyParser from 'koa-bodyparser';
@@ -10,7 +10,6 @@ import logger from 'koa-logger';
 import { ApolloServer } from 'apollo-server-koa';
 import { Knex } from 'knex';
 import { connect } from './db/connect';
-import { down, up } from './db/initialize';
 import { graphServer } from './graphql/server';
 import { dataRouteRegex, dataHeadRoute, dataRoute, subDataRoute } from './routes/data';
 import { mineRoute } from './routes/mine';
@@ -205,23 +204,6 @@ export default class ArLocal {
         }
       });
     }
-    down(this.connection, this.persist)
-      .then(() => {
-        this.apollo
-          .stop()
-          .then(() => {
-            this.connection
-              .destroy()
-              .then(() => {
-                try {
-                  if (!this.persist) rmSync(this.dbPath, { recursive: true });
-                } catch (e) {}
-              })
-              .catch(() => {});
-          })
-          .catch(() => {});
-      })
-      .catch(() => {});
   }
 
   getServer(): Server {
