@@ -208,6 +208,9 @@ export async function txPostRoute(ctx: Router.RouterContext) {
     tx.created_at = new Date().toISOString();
     tx.height = ctx.network.blocks;
 
+    console.log("Inserting Tx");
+    console.log(tx);
+
     await ctx.connection.insert(tx).into('transactions');
 
     let index = 0;
