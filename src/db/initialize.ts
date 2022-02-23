@@ -3,12 +3,12 @@ import { Knex } from 'knex';
 export async function up(knex: Knex) {
   const indices = JSON.parse(process.env.INDICES || '[]');
 
-  await knex.schema
-    .dropTableIfExists('transactions')
-    .dropTableIfExists('blocks')
-    .dropTableIfExists('tags')
-    .dropTableIfExists('wallets')
-    .dropTableIfExists('chunks');
+  // await knex.schema
+  //   .dropTableIfExists('transactions')
+  //   .dropTableIfExists('blocks')
+  //   .dropTableIfExists('tags')
+  //   .dropTableIfExists('wallets')
+  //   .dropTableIfExists('chunks');
 
   return knex.schema
     .createTableIfNotExists('transactions', (table) => {
