@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { readFileSync, writeFileSync } from 'fs';
+import { uploadData, getBlockData } from './gcp-storage';
 
 export class DataDB {
   // DB should be emptied on every run.
@@ -11,7 +11,7 @@ export class DataDB {
 
   async insert(obj: { txid: string; data: string }): Promise<{ txid: string; data: string }> {
     try {
-      writeFileSync(this.path + obj.txid, typeof obj.data === 'string' ? obj.data : JSON.stringify(obj.data), 'utf8');
+      await uploadData(obj.data, obj.txid);
       return obj;
     } catch (error) {
       console.error({ error });
@@ -19,7 +19,7 @@ export class DataDB {
   }
 
   async findOne(txid: string): Promise<{ txid: string; data: string }> {
-    const data = readFileSync(this.path + txid, 'utf8');
+    const data = await getBlockData(txid);
     return { txid, data };
   }
 }

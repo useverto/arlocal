@@ -32,16 +32,26 @@ export const fileExists = async (section: string, name: string) => {
 
 export const uploadData = async (data: string, txId: string) => {
     const fileExistBlockData = await fileExists('BLOCKS', txId);
+    let finalData = {};
     if(fileExistBlockData) {
         const currentContent = await gcpStorage.fetchFileContent(BUCKET_NAME, `BLOCKS/${txId}.json`);
         if(currentContent) {
             const parsedContent = JSON.parse(currentContent);
             const newContent = JSON.parse(data);
             const toUpload = jsonUpdate(parsedContent, newContent);
-            await updateStorage(`BLOCKS`, txId, toUpload);
+            finalData = toUpload;
         } else {
-            await updateStorage(`BLOCKS`, txId, JSON.parse(data));
+            finalData = JSON.parse(data);
         }
     }
+    await updateStorage(`BLOCKS`, txId, finalData);
 
+}
+
+export const getBlockData = async (txId: string) => {
+    try {
+        return await gcpStorage.fetchFileContent(BUCKET_NAME, `BLOCKS/${txId}.json`);
+    } catch {
+        return undefined;
+    }
 }
