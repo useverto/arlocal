@@ -38,6 +38,7 @@
     "arweave": "^1.10.23",
     "arweave-bundles": "^1.0.3",
     "bignumber.js": "^9.0.2",
+    "dotenv": "^16.0.0",
     "graphql": "^16.2.0",
     "knex": "^0.95.6",
     "koa": "^2.13.4",
@@ -53,7 +54,8 @@
     "rfc4648": "^1.5.1",
     "smartweave": "^0.4.46",
     "sqlite3": "^5.0.2",
-    "tsc-watch": "^4.6.0"
+    "tsc-watch": "^4.6.0",
+    "verto-internals": "^0.9.1"
   },
   "devDependencies": {
     "@assemblyscript/loader": "^0.19.23",
