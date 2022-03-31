@@ -10,8 +10,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "declaration": true,
-    "lib": ["es2019"],
-    "experimentalDecorators": true
+    "lib": ["es2019", "DOM"],
+    "allowJs": true
   },
   "include": ["src", "__tests__"],
   "exclude": ["node_modules", "**/__tests__/*"]

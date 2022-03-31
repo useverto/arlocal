@@ -12,6 +12,7 @@ const argv = minimist(process.argv.slice(2));
 const port = process.env["PORT"] || (argv._.length && !isNaN(+argv._[0]) ? argv._[0] : 1984);
 const showLogs = argv.hidelogs ? false : true;
 const persist = argv.persist;
+const fails = argv.fails || 0;
 
 const dbPath = argv.dbpath ? join(process.cwd(), argv.dbpath) : appData('arlocal', '.db');
 
@@ -21,7 +22,7 @@ process.on('uncaughtException', (err) => { console.error(err); });
 process.on('unhandledRejection', (reason, p) => { console.error(reason, 'Unhandled Rejection at Promise', p); });
 
 (async () => {
-  app = new ArLocal(+port, showLogs, dbPath, !!persist);
+  app = new ArLocal(+port, showLogs, dbPath, !!persist, fails);
   await app.start();
 
   // process.on('SIGINT', stop);

@@ -53,4 +53,25 @@ export class ChunkDB {
       console.error({ error });
     }
   }
+
+  async getLowerOffset(offset: number) {
+    try {
+      return (await this.connection('chunks').where('offset', '<', offset).orderBy('offset', 'desc'))[0];
+    } catch (error) {
+      console.error({ error });
+    }
+  }
+
+  async getLastChunkOffset(): Promise<number> {
+    try {
+      const chunk = (await this.connection('chunks').orderBy('offset', 'desc'))[0];
+      if (!chunk || !chunk.offset) {
+        return 0;
+      }
+      return chunk.offset;
+    } catch (error) {
+      console.log('I crashed');
+      console.error({ error });
+    }
+  }
 }

@@ -36,6 +36,7 @@ export const transactionFields = [
   'content_type',
   'data_size',
   'data_root',
+  'bundledIn',
 ];
 
 export function formatTransaction(transaction: TransactionType) {
@@ -59,6 +60,7 @@ export function formatTransaction(transaction: TransactionType) {
         data_size: transaction.data_size || (transaction.data ? fromB64Url(transaction.data).byteLength : undefined),
         tags: JSON.stringify(transaction.tags),
         owner_address: sha256B64Url(fromB64Url(transaction.owner)),
+        last_tx: transaction.last_tx || '',
       },
       transactionFields.concat(indices),
     );
@@ -112,6 +114,10 @@ export class TransactionDB {
 
   async getUnminedTxs() {
     return (await this.connection('transactions').where({ block: '' })).map(({ id }) => id);
+  }
+
+  async deleteById(id: string) {
+    return this.connection('transactions').where({ id }).del();
   }
 
   async mineTxs(block: string) {

@@ -12,7 +12,7 @@ import { Knex } from 'knex';
 import { connect } from './db/connect';
 import { graphServer } from './graphql/server';
 import { dataRouteRegex, dataHeadRoute, dataRoute, subDataRoute } from './routes/data';
-import { mineRoute } from './routes/mine';
+import { mineRoute, mineWithFailsRoute } from './routes/mine';
 import { statusRoute } from './routes/status';
 import {
   txAnchorRoute,
@@ -23,11 +23,14 @@ import {
   txFieldRoute,
   txFileRoute,
   txRawDataRoute,
+  deleteTxRoute,
+  txDataRoute,
 } from './routes/transaction';
+import { txAccessMiddleware } from './middlewares/transaction';
 import { Utils } from './utils/utils';
 import { NetworkInterface } from './faces/network';
 import Logging from './utils/logging';
-import { blocksRoute } from './routes/blocks';
+import { blocksRoute, blocksRouteViaHeight } from './routes/blocks';
 import {
   addBalanceRoute,
   createWalletRoute,
@@ -47,6 +50,8 @@ declare module 'koa' {
     transactions: string[];
     dbPath: string;
     logging: Logging;
+    fails: number;
+    timestamp: number;
   }
 }
 
@@ -54,6 +59,7 @@ export default class ArLocal {
   private port: number = 1984;
   private dbPath: string;
   private persist: boolean;
+  private fails: number;
   private log: Logging;
 
   private connection: Knex;
@@ -64,13 +70,14 @@ export default class ArLocal {
   private router = new Router();
   private walletDB: WalletDB;
 
-  constructor(port: number = 1984, showLogs: boolean = true, dbPath?: string, persist = false) {
+  constructor(port: number = 1984, showLogs: boolean = true, dbPath?: string, persist = false, fails = 0) {
     this.port = port || this.port;
     dbPath = dbPath || path.join(__dirname, '.db', port.toString());
 
     this.dbPath = dbPath;
 
     this.persist = persist;
+    this.fails = fails;
     this.log = new Logging(showLogs);
 
     this.connection = connect();
@@ -90,6 +97,9 @@ export default class ArLocal {
     this.app.context.logging = this.log;
     this.app.context.dbPath = dbPath;
     this.app.context.connection = this.connection;
+    this.app.context.fails = this.fails / 100;
+    // server start date for genesis block timestamp
+    this.app.context.timestamp = new Date().getTime();
     this.walletDB = new WalletDB(this.connection);
   }
 
@@ -118,22 +128,29 @@ export default class ArLocal {
     this.router.get('/info', statusRoute);
     this.router.get('/peers', peersRoute);
     this.router.get('/mine/:qty?', mineRoute);
+    this.router.get('/mineWithFails/:qty?', mineWithFailsRoute);
 
     this.router.get('/tx_anchor', txAnchorRoute);
     this.router.get('/price/:bytes/:addy?', async (ctx) => (ctx.body = +ctx.params.bytes * 1965132));
 
+    // tx filter endpoint to restrict ans-104 txs
+    this.router.get(/^\/tx(?:\/|$)/, txAccessMiddleware);
+
     this.router.get('/tx/:txid/offset', txOffsetRoute);
     this.router.get('/tx/:txid/status', txStatusRoute);
     this.router.get('/tx/:txid/data', txRawDataRoute);
+    this.router.get('/tx/:txid/data.:ext', txDataRoute);
     this.router.get('/tx/:txid/:field', txFieldRoute);
     this.router.get('/tx/:txid/:file', txFileRoute);
     this.router.get('/tx/:txid', txRoute);
+    this.router.delete('/tx/:txid', deleteTxRoute);
     this.router.post('/tx', txPostRoute);
 
     this.router.post('/chunk', postChunkRoute);
     this.router.get('/chunk/:offset', getChunkOffsetRoute);
 
     this.router.get('/block/hash/:indep_hash', blocksRoute);
+    this.router.get('/block/height/:height', blocksRouteViaHeight);
 
     this.router.post('/wallet', createWalletRoute);
     this.router.patch('/wallet/:address/balance', updateBalanceRoute);
@@ -185,10 +202,11 @@ export default class ArLocal {
       {
         introspection: true,
         playground: true,
-      },
+      } as any,
       this.connection,
     );
 
+    await this.apollo.start();
     this.apollo.applyMiddleware({ app: this.app, path: '/graphql' });
     // await up(this.connection);
   }

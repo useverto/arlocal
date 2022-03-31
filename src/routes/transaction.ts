@@ -1,4 +1,5 @@
 import Router from 'koa-router';
+import mime from 'mime';
 import { formatTransaction, TransactionDB } from '../db/transaction';
 import { DataDB } from '../db/data';
 import { Utils } from '../utils/utils';
@@ -8,6 +9,8 @@ import { WalletDB } from '../db/wallet';
 import { b64UrlToBuffer, bufferTob64Url, hash } from '../utils/encoding';
 import { ChunkDB } from '../db/chunks';
 import { Next } from 'koa';
+import Transaction from 'arweave/node/lib/transaction';
+import { generateTransactionChunks } from 'arweave/node/lib/merkle';
 
 export const pathRegex = /^\/?([a-z0-9-_]{43})/i;
 
@@ -73,17 +76,24 @@ export async function txRoute(ctx: Router.RouterContext) {
 
 export async function txOffsetRoute(ctx: Router.RouterContext) {
   try {
-    if (!transactionDB) {
+    if (
+      oldDbPath !== ctx.dbPath ||
+      !transactionDB ||
+      !chunkDB ||
+      !dataDB ||
+      connectionSettings !== ctx.connection.client.connectionSettings.filename
+    ) {
       transactionDB = new TransactionDB(ctx.connection);
-    }
-    if (!chunkDB) {
       chunkDB = new ChunkDB(ctx.connection);
+      dataDB = new DataDB(ctx.dbPath);
+      oldDbPath = ctx.dbPath;
+      connectionSettings = ctx.connection.client.connectionSettings.filename;
     }
 
     const path = ctx.params.txid.match(pathRegex) || [];
     const transaction = path.length > 1 ? path[1] : '';
 
-    const metadata = await transactionDB.getById(transaction);
+    const metadata: Transaction = await transactionDB.getById(transaction);
     ctx.logging.log(metadata);
 
     if (!metadata) {
@@ -91,11 +101,12 @@ export async function txOffsetRoute(ctx: Router.RouterContext) {
       ctx.body = { status: 404, error: 'Not Found' };
       return;
     }
-    const chunk = await chunkDB.getByRootAndSize(metadata.data_root, metadata.data_size);
+    const chunk = await chunkDB.getByRootAndSize(metadata.data_root, +metadata.data_size);
 
     ctx.status = 200;
     ctx.type = 'text/plain'; // TODO: updated this in arweave gateway to app/json
-    ctx.body = { offset: +chunk.offset, size: metadata.data_size };
+
+    ctx.body = { offset: +chunk.offset + +metadata.data_size - 1, size: metadata.data_size };
   } catch (error) {
     console.error({ error });
   }
@@ -155,6 +166,7 @@ export async function txPostRoute(ctx: Router.RouterContext) {
               ...ctx.request,
               body: {
                 id: bundle.getIdBy(i),
+                bundledIn: data.id,
                 ...item.toJSON(),
               },
             },
@@ -184,9 +196,47 @@ export async function txPostRoute(ctx: Router.RouterContext) {
       }
     }
 
+    // for tx without chunk
+    // create the chunk, to prevent offset error on tx/:offset endpoint
+    if (data.data) {
+      // create tx chunks if not exists
+      const chunk = await chunkDB.getByRootAndSize(data.data_root, +data.data_size);
+
+      if (!chunk) {
+        // get data from data db
+        const dataBuf = b64UrlToBuffer(data.data);
+
+        const nChunk = await generateTransactionChunks(dataBuf);
+        // make chunks offsets unique
+        const lastOffset = await chunkDB.getLastChunkOffset();
+
+        // create all chunks
+        const asyncOps = nChunk.chunks.map((_chunk, idx) => {
+          const proof = nChunk.proofs[idx];
+          return chunkDB.create({
+            chunk: bufferTob64Url(dataBuf.slice(_chunk.minByteRange, _chunk.maxByteRange)),
+            data_size: +data.data_size,
+            data_path: bufferTob64Url(proof.proof),
+            data_root: bufferTob64Url(nChunk.data_root),
+            offset: proof.offset + lastOffset,
+          });
+        });
+
+        await Promise.all(asyncOps);
+      }
+    }
+
     // BALANCE UPDATES
     if (data?.target && data?.quantity) {
-      const targetWallet = await walletDB.getWallet(data.target);
+      let targetWallet = await walletDB.getWallet(data.target);
+      if (!targetWallet) {
+        await walletDB.addWallet({
+          address: data?.target,
+          balance: 0,
+        });
+
+        targetWallet = await walletDB.getWallet(data.target);
+      }
 
       if (!wallet || !targetWallet) {
         ctx.status = 404;
@@ -199,7 +249,7 @@ export async function txPostRoute(ctx: Router.RouterContext) {
         return;
       }
       await walletDB.incrementBalance(data.target, +data.quantity);
-      await walletDB.incrementBalance(data.owner, -data.quantity);
+      await walletDB.incrementBalance(wallet.address, -data.quantity);
     }
 
     await dataDB.insert({ txid: data.id, data: data.data });
@@ -232,6 +282,7 @@ export async function txPostRoute(ctx: Router.RouterContext) {
       index++;
     }
 
+    // Don't charge wallet for arbundles Data-Items
     // @ts-ignore
     if (!ctx.txInBundle) {
       const fee = +data.reward > calculatedReward ? +data.reward : calculatedReward;
@@ -402,6 +453,89 @@ export async function txRawDataRoute(ctx: Router.RouterContext) {
     // Return the base64 data to the user
     ctx.status = 200;
     ctx.body = data.data;
+  } catch (error) {
+    ctx.status = 500;
+    ctx.body = { error: error.message };
+  }
+}
+
+export async function txDataRoute(ctx: Router.RouterContext, next: Next) {
+  try {
+    if (
+      !transactionDB ||
+      !dataDB ||
+      oldDbPath !== ctx.dbPath ||
+      connectionSettings !== ctx.connection.client.connectionSettings.filename
+    ) {
+      transactionDB = new TransactionDB(ctx.connection);
+      dataDB = new DataDB(ctx.dbPath);
+      oldDbPath = ctx.dbPath;
+      connectionSettings = ctx.connection.client.connectionSettings.filename;
+    }
+
+    const path = ctx.params.txid.match(pathRegex) || [];
+    const txid = path.length > 1 ? path[1] : '';
+
+    const metadata: TransactionType = await transactionDB.getById(txid);
+
+    if (!metadata) {
+      ctx.status = 404;
+      ctx.body = { status: 404, error: 'Not found' };
+      return;
+    }
+
+    const ext = ctx.params.ext;
+    const contentType = mime.getType(ext);
+
+    // Find the transaction data
+    const data = await dataDB.findOne(txid);
+
+    if (!data || !data.data) {
+      // move to next controller
+      return await next();
+    }
+
+    // parse raw data to manifest
+    const parsedData = Utils.atob(data.data);
+
+    ctx.header['content-type'] = contentType;
+    ctx.status = 200;
+    ctx.body = parsedData;
+  } catch (error) {
+    ctx.status = 500;
+    ctx.body = { error: error.message };
+  }
+}
+
+export async function deleteTxRoute(ctx: Router.RouterContext) {
+  try {
+    if (
+      !transactionDB ||
+      !dataDB ||
+      oldDbPath !== ctx.dbPath ||
+      connectionSettings !== ctx.connection.client.connectionSettings.filename
+    ) {
+      transactionDB = new TransactionDB(ctx.connection);
+      dataDB = new DataDB(ctx.dbPath);
+      oldDbPath = ctx.dbPath;
+      connectionSettings = ctx.connection.client.connectionSettings.filename;
+    }
+
+    const path = ctx.params.txid.match(pathRegex) || [];
+    const txid = path.length > 1 ? path[1] : '';
+
+    const metadata: TransactionType = await transactionDB.getById(txid);
+
+    if (!metadata) {
+      ctx.status = 404;
+      ctx.body = { status: 404, error: 'Not found' };
+      return;
+    }
+
+    await transactionDB.deleteById(txid);
+
+    ctx.status = 200;
+    return;
   } catch (error) {
     ctx.status = 500;
     ctx.body = { error: error.message };

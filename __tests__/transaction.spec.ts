@@ -1,5 +1,6 @@
 import request from 'supertest';
-import { blockweave, server } from '../src/test-setup';
+import { createData, bundleAndSignData, signers } from 'arbundles';
+import { blockweave, server, wallet } from '../src/test-setup';
 import { createTransaction, mine } from '../src/utils/tests';
 
 jest.setTimeout(20000);
@@ -140,6 +141,21 @@ describe('', () => {
     });
   });
 
+  describe('Delete TX', () => {
+    it('Delete TX', async () => {
+      const txid = await createTransaction(blockweave, 'test');
+
+      expect(txid).toBeDefined();
+      // Call the endpoint directly
+      let res = await request(server).get(`/tx/${txid}`);
+
+      expect(res.body.id).toEqual(txid);
+      await request(server).delete(`/tx/${txid}`);
+      res = await request(server).get(`/tx/${txid}`);
+      expect(res.status).toEqual(404);
+    });
+  });
+
   it('GET /tx/:txid/data', async () => {
     const txid = await createTransaction(blockweave, 'test');
     const data = 'dGVzdA';
@@ -147,4 +163,39 @@ describe('', () => {
 
     expect(data).toEqual(res.text);
   });
+
+  describe('Bundled TX data-items', () => {
+    it('should return "not found"', async () => {
+      const signer = new signers.ArweaveSigner(wallet);
+
+      const dataItems = [createData("hello", signer), createData("world", signer)];
+      const bundle = await bundleAndSignData(dataItems, signer);
+      const tx = await bundle.toTransaction({}, blockweave as any, wallet);
+      // get the zero item
+      const txid = bundle.getIdBy(0);
+      
+      await blockweave.transactions.sign(tx as any, wallet);
+      await blockweave.transactions.post(tx);
+
+      await mine(blockweave);
+
+      // EXPECT DATA-ITEM TO RETURN 404
+      // call all tx endpoints
+      let res = await request(server).get(`/tx/${txid}`);
+      expect(res.statusCode).toEqual(404);
+      expect(res.text).toEqual('Not Found');
+
+      res = await request(server).get(`/tx/${txid}/data`);
+      expect(res.statusCode).toEqual(404);
+      expect(res.text).toEqual('Not Found');
+
+      res = await request(server).get(`/tx/${txid}/data.json`);
+      expect(res.statusCode).toEqual(404);
+      expect(res.text).toEqual('Not Found');
+
+      res = await request(server).get(`/tx/${txid}/offset`);
+      expect(res.statusCode).toEqual(404);
+      expect(res.text).toEqual('Not Found');
+    });
+  })
 });
