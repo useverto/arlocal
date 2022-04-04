@@ -19,15 +19,14 @@ export class BlockDB {
   async mine(height: number, previous: string, txs: string[]) {
     try {
       const id = Utils.randomID(64);
-
       await this.connection
         .insert({
           id,
           height,
-          mined_at: Date.now(),
+          mined_at: new Date(),
           previous_block: previous,
-          txs,
-          extended: '',
+          txs: JSON.stringify(txs || []),
+          extended: {},
         })
         .into('blocks');
 
