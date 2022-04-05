@@ -106,6 +106,7 @@ export async function txOffsetRoute(ctx: Router.RouterContext) {
     ctx.status = 200;
     ctx.type = 'text/plain'; // TODO: updated this in arweave gateway to app/json
 
+    // @ts-ignore
     ctx.body = { offset: parseInt(+chunk.offset + +metadata.data_size - 1), size: parseInt(metadata.data_size) };
   } catch (error) {
     console.error({ error });
