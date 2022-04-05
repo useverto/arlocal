@@ -18,8 +18,10 @@ export class ChunkDB {
           id: Utils.randomID(64),
           chunk,
           data_root,
-          data_size,
-          offset,
+          // @ts-ignore
+          data_size: parseInt(data_size),
+          // @ts-ignore
+          offset: parseInt(offset),
           data_path,
         })
         .into('chunks');
