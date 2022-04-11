@@ -1,7 +1,7 @@
 import { GcpStorageService } from "verto-internals/services/gcp/gcp-storage.service";
 
 export const gcpStorage = () => new GcpStorageService();
-export const BUCKET_NAME = 'arlocal-testnet';
+export const BUCKET_NAME = 'arlocal-testnet-stage';
 
 // @ts-ignore
 function jsonUpdate(original: any, newJson: any) {

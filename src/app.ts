@@ -42,6 +42,8 @@ import { getChunkOffsetRoute, postChunkRoute } from './routes/chunk';
 import { peersRoute } from './routes/peer';
 import { WalletDB } from './db/wallet';
 import { BlockDB } from './db/block';
+// @ts-ignore
+import {up} from "./db/initialize";
 
 declare module 'koa' {
   interface BaseContext {
