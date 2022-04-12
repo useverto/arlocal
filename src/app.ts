@@ -1,6 +1,6 @@
 import { Server } from 'http';
 import { rmSync, mkdirSync, existsSync } from 'fs';
-import path from 'path';
+import path, { join } from 'path';
 import Koa, { Next } from 'koa';
 import cors from '@koa/cors';
 import bodyParser from 'koa-bodyparser';
@@ -10,6 +10,7 @@ import logger from 'koa-logger';
 import { ApolloServer } from 'apollo-server-koa';
 import { Knex } from 'knex';
 import { connect } from './db/connect';
+import { down, up } from './db/initialize';
 import { graphServer } from './graphql/server';
 import { dataRouteRegex, dataHeadRoute, dataRoute, subDataRoute } from './routes/data';
 import { mineRoute, mineWithFailsRoute } from './routes/mine';
@@ -42,8 +43,6 @@ import { getChunkOffsetRoute, postChunkRoute } from './routes/chunk';
 import { peersRoute } from './routes/peer';
 import { WalletDB } from './db/wallet';
 import { BlockDB } from './db/block';
-// @ts-ignore
-import {up} from "./db/initialize";
 
 declare module 'koa' {
   interface BaseContext {
@@ -82,7 +81,7 @@ export default class ArLocal {
     this.fails = fails;
     this.log = new Logging(showLogs);
 
-    this.connection = connect();
+    this.connection = connect(dbPath);
 
     this.app.context.network = {
       network: 'arlocal.N.1',
@@ -210,7 +209,7 @@ export default class ArLocal {
 
     await this.apollo.start();
     this.apollo.applyMiddleware({ app: this.app, path: '/graphql' });
-    // await up(this.connection);
+    if (!existsSync(join(this.dbPath, 'db.sqlite'))) await up(this.connection);
   }
 
   async stop() {
@@ -224,6 +223,23 @@ export default class ArLocal {
         }
       });
     }
+    down(this.connection, this.persist)
+      .then(() => {
+        this.apollo
+          .stop()
+          .then(() => {
+            this.connection
+              .destroy()
+              .then(() => {
+                try {
+                  if (!this.persist) rmSync(this.dbPath, { recursive: true });
+                } catch (e) {}
+              })
+              .catch(() => {});
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
   }
 
   getServer(): Server {

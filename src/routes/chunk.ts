@@ -34,8 +34,7 @@ export async function getChunkOffsetRoute(ctx: Router.RouterContext) {
     if (!chunkDB) {
       chunkDB = new ChunkDB(ctx.connection);
     }
-    console.log(ctx.params);
-    const offset = +(Number(ctx.params.offset));
+    const offset = +ctx.params.offset;
 
     const chunk = await chunkDB.getByOffset(offset);
     if (!chunk) {

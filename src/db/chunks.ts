@@ -12,6 +12,7 @@ export class ChunkDB {
   async create({ chunk, data_root, data_size, offset, data_path }: Chunk) {
     try {
       const id = Utils.randomID(64);
+
       await this.connection
         .insert({
           id: Utils.randomID(64),
@@ -46,7 +47,6 @@ export class ChunkDB {
   }
 
   async getByOffset(offset: number) {
-    console.log("get by offset: ", offset);
     try {
       return (await this.connection('chunks').where({ offset }))[0];
     } catch (error) {

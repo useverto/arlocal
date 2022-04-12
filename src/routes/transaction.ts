@@ -106,8 +106,7 @@ export async function txOffsetRoute(ctx: Router.RouterContext) {
     ctx.status = 200;
     ctx.type = 'text/plain'; // TODO: updated this in arweave gateway to app/json
 
-    // @ts-ignore
-    ctx.body = { offset: String(+chunk.offset + +metadata.data_size - 1), size: String(metadata.data_size) };
+    ctx.body = { offset: +chunk.offset + +metadata.data_size - 1, size: metadata.data_size };
   } catch (error) {
     console.error({ error });
   }
@@ -258,9 +257,6 @@ export async function txPostRoute(ctx: Router.RouterContext) {
     const tx = formatTransaction(data);
     tx.created_at = new Date().toISOString();
     tx.height = ctx.network.blocks;
-
-    console.log("Inserting Tx");
-    console.log(tx);
 
     await ctx.connection.insert(tx).into('transactions');
 
