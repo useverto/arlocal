@@ -11,7 +11,8 @@
     "skipLibCheck": true,
     "declaration": true,
     "lib": ["es2019", "DOM"],
-    "allowJs": true
+    "allowJs": true,
+    "experimentalDecorators": true
   },
   "include": ["src", "__tests__"],
   "exclude": ["node_modules", "**/__tests__/*"]

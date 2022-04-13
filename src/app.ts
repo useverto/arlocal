@@ -1,5 +1,5 @@
 import { Server } from 'http';
-import { rmSync, mkdirSync, existsSync } from 'fs';
+import { rmSync, mkdirSync, existsSync, writeFileSync } from 'fs';
 import path, { join } from 'path';
 import Koa, { Next } from 'koa';
 import cors from '@koa/cors';
@@ -43,6 +43,8 @@ import { getChunkOffsetRoute, postChunkRoute } from './routes/chunk';
 import { peersRoute } from './routes/peer';
 import { WalletDB } from './db/wallet';
 import { BlockDB } from './db/block';
+import {gcpStorage} from "./gcp-storage";
+import extract from "extract-zip";
 
 declare module 'koa' {
   interface BaseContext {
@@ -197,6 +199,17 @@ export default class ArLocal {
     } catch (e) {}
 
     if (!existsSync(this.dbPath)) mkdirSync(this.dbPath, { recursive: true });
+
+    const backup = await gcpStorage().getFile("arlocal-sqllite-backups", "backup.zip");
+    const fileExists = (await backup.exists())[0];
+    console.log(fileExists);
+    if(fileExists) {
+      const file = await backup.download();
+      writeFileSync("./restore-backup.zip", file[0]);
+      console.log("Creating re-store file");
+      await extract("./restore-backup.zip", { dir: this.dbPath });
+      console.log("Re-stored");
+    }
 
     // sqlite
     this.apollo = graphServer(
