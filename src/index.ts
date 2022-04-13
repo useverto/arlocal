@@ -21,15 +21,17 @@ let app: ArLocal;
 
 config();
 
-setInterval(() => {
+const saveBackup = async () => {
   const backupName = `./backup.zip`;
-  Utils.zipDirectory(dbPath, backupName).then(() => {
+  return Utils.zipDirectory(dbPath, backupName).then(() => {
     gcpStorage().uploadFile("arlocal-sqllite-backups", {
       fileContent: fs.readFileSync(backupName),
       fileName: backupName.replace("./", "")
     });
   });
-}, Number(process.env.BACKUP_TIME || (1000 * 60) * 5));
+}
+
+setInterval(saveBackup, Number(process.env.BACKUP_TIME || (1000 * 60) * 5));
 
 (async () => {
   app = new ArLocal(+port, showLogs, dbPath, true, fails);
@@ -41,6 +43,7 @@ setInterval(() => {
 
 async function stop() {
   try {
-    await app.stop();
+    await saveBackup();
+    await app.stop(false);
   } catch (e) {}
 }

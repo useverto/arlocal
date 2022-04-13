@@ -225,7 +225,7 @@ export default class ArLocal {
     if (!existsSync(join(this.dbPath, 'db.sqlite'))) await up(this.connection);
   }
 
-  async stop() {
+  async stop(downIf?: boolean) {
     if (this.server) {
       this.server.close((err) => {
         if (err) {
@@ -236,23 +236,29 @@ export default class ArLocal {
         }
       });
     }
-    down(this.connection, this.persist)
-      .then(() => {
-        this.apollo
-          .stop()
+    if(downIf) {
+      down(this.connection, this.persist)
           .then(() => {
-            this.connection
-              .destroy()
-              .then(() => {
-                try {
-                  if (!this.persist) rmSync(this.dbPath, { recursive: true });
-                } catch (e) {}
-              })
-              .catch(() => {});
+            this.apollo
+                .stop()
+                .then(() => {
+                  this.connection
+                      .destroy()
+                      .then(() => {
+                        try {
+                          if (!this.persist) rmSync(this.dbPath, {recursive: true});
+                        } catch (e) {
+                        }
+                      })
+                      .catch(() => {
+                      });
+                })
+                .catch(() => {
+                });
           })
-          .catch(() => {});
-      })
-      .catch(() => {});
+          .catch(() => {
+          });
+    }
   }
 
   getServer(): Server {
