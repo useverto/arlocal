@@ -105,6 +105,8 @@ export class TransactionDB {
       await this.connection.queryBuilder().select('*').from('transactions').where('id', '=', txId).limit(1)
     )[0];
 
+    tx.data_size = String(tx.data_size);
+
     try {
       tx.tags = JSON.parse(tx.tags);
     } catch (e) {}
