@@ -106,6 +106,7 @@ export class TransactionDB {
     )[0];
 
     tx.data_size = String(tx.data_size);
+    tx.data = "";
 
     try {
       tx.tags = JSON.parse(tx.tags);
