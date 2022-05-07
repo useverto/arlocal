@@ -24,7 +24,7 @@ export async function mineRoute(ctx: Router.RouterContext) {
 
     await transactionDB.mineTxs(ctx.network.current);
 
-    ctx.body = ctx.network;
+    ctx.body = {...ctx.network, mined: true};
   } catch (error) {
     console.error({ error });
   }
