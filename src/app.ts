@@ -1,5 +1,5 @@
 import { Server } from 'http';
-import { rmSync, mkdirSync, existsSync, writeFileSync } from 'fs';
+import { rmSync, mkdirSync, existsSync, writeFileSync, rmdirSync } from 'fs';
 import path, { join } from 'path';
 import Koa, { Next } from 'koa';
 import cors from '@koa/cors';
@@ -166,6 +166,15 @@ export default class ArLocal {
     this.router.get(dataRouteRegex, dataRoute);
 
     this.router.get('/(.*)', subDataRoute);
+
+    this.router.post('/clean', async (ctx: Router.RouterContext) => {
+      const { password } = ctx.request.query;
+      if(password === process.env.PASSWORD) {
+          rmdirSync(this.dbPath, { recursive: true });
+          await gcpStorage().getFile("arlocal-sqllite-backups", "backup.zip").delete();
+          process.kill(0);
+      }
+    });
 
     this.router.get('/:other', (ctx) => {
       ctx.type = 'application/json';
