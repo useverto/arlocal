@@ -45,6 +45,7 @@ import { WalletDB } from './db/wallet';
 import { BlockDB } from './db/block';
 import {gcpStorage} from "./gcp-storage";
 import extract from "extract-zip";
+import { runInit } from 'run-init/src';
 
 declare module 'koa' {
   interface BaseContext {
@@ -172,6 +173,7 @@ export default class ArLocal {
       if(password === process.env.PASSWORD) {
           rmdirSync(this.dbPath, { recursive: true });
           await gcpStorage().getFile("arlocal-sqllite-backups", "backup.zip").delete();
+          await runInit();
           process.kill(0);
       }
     });
