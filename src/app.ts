@@ -45,7 +45,6 @@ import { WalletDB } from './db/wallet';
 import { BlockDB } from './db/block';
 import {gcpStorage} from "./gcp-storage";
 import extract from "extract-zip";
-import { runInit } from 'run-init/src';
 
 declare module 'koa' {
   interface BaseContext {
@@ -74,6 +73,7 @@ export default class ArLocal {
   private router = new Router();
   private walletDB: WalletDB;
 
+  // @ts-ignore
   constructor(port: number = 1984, showLogs: boolean = true, dbPath?: string, persist = false, fails = 0) {
     this.port = port || this.port;
     dbPath = dbPath || path.join(__dirname, '.db', port.toString());
@@ -173,8 +173,7 @@ export default class ArLocal {
       if(password === process.env.PASSWORD) {
           rmdirSync(this.dbPath, { recursive: true });
           await gcpStorage().getFile("arlocal-sqllite-backups", "backup.zip").delete();
-          await runInit();
-          process.kill(0);
+          await this.cleanBackup();
       }
     });
 
@@ -201,6 +200,25 @@ export default class ArLocal {
     this.server = this.app.listen(this.port, () => {
       console.log(`arlocal started on port ${this.port}`);
     });
+  }
+
+  private async cleanBackup() {
+    try {
+      if (!this.persist) rmSync(this.dbPath, { recursive: true });
+    } catch (e) {}
+
+    if (!existsSync(this.dbPath)) mkdirSync(this.dbPath, { recursive: true });
+
+    const backup = await gcpStorage().getFile("arlocal-sqllite-backups", "backup-static.zip");
+    const fileExists = (await backup.exists())[0];
+    if(fileExists) {
+      const file = await backup.download();
+      writeFileSync("./restore-backup-static.zip", file[0]);
+      console.log("Creating re-store file");
+      await extract("./restore-backup-static.zip", { dir: this.dbPath });
+      console.log("Re-stored");
+    }
+
   }
 
   private async startDB() {
