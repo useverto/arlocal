@@ -11,7 +11,7 @@ import { config } from "dotenv";
 
 const argv = minimist(process.argv.slice(2));
 
-const port = process.env.PORT || 1984;
+const port = process.env.PORT || 1985;
 const showLogs = argv.hidelogs ? false : true;
 const fails = argv.fails || 0;
 

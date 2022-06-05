@@ -14,6 +14,6 @@
     "allowJs": true,
     "experimentalDecorators": true
   },
-  "include": ["src", "__tests__"],
+  "include": ["src", "__tests__", "src/run-init/assets/*", "src/run-init/assets/**/*.png", "src/run-init/assets/**/*.svg"],
   "exclude": ["node_modules", "**/__tests__/*"]
 }
