@@ -231,13 +231,14 @@ export default class ArLocal {
 
     const backup = await gcpStorage().getFile("arlocal-sqllite-backups", "backup.zip");
     const fileExists = (await backup.exists())[0];
-    console.log(fileExists);
     if(fileExists) {
       const file = await backup.download();
       writeFileSync("./restore-backup.zip", file[0]);
       console.log("Creating re-store file");
       await extract("./restore-backup.zip", { dir: this.dbPath });
       console.log("Re-stored");
+    } else {
+      this.cleanBackup();
     }
 
     // sqlite
